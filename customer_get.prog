@@ -17,7 +17,7 @@ and p.party_name !='Elion / Arveldusteenus'
 and cust.attribute20  = regexp_substr(cust.attribute20, 'tbcis:\d+',1,1)
 and cust.attribute9 is null
 and (cust.cust_account_id not in (select ebs_customer_id from XXD_DAX_CUSTOMER_MISS) OR sysdate-trunc(sysdate)<1/24)
-and cust.cust_account_id not in (select ebs_customer_id from XXD_DAX_CUSTOMER)
+--and cust.cust_account_id not in (select ebs_customer_id from XXD_DAX_CUSTOMER)
 and cust.CUST_ACCOUNT_ID in (
 select customer_id from ar_payment_schedules_all
 where gl_date >= date '2016-01-01'
