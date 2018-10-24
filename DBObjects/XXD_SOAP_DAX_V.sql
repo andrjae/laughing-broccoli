@@ -1,6 +1,4 @@
-DROP VIEW APPS.XXD_SOAP_DAX_V;
-
-/* Formatted on 5/09/2018 15:56:10 (QP5 v5.336) */
+/* Formatted on 10.10.2018 9:31:06 (QP5 v5.318) */
 CREATE OR REPLACE FORCE VIEW APPS.XXD_SOAP_DAX_V
 (
     CUSTOMER_ID,
@@ -21,7 +19,8 @@ AS
            ebs_transaction_no,
            status,
            TYPE,
-           NVL2 (invoice_pdf, 1, 0)    pdf,
+           NVL2 (invoice_pdf, 1, 0)
+               pdf,
            CASE TYPE
                WHEN 'INVOICE'
                THEN
@@ -89,7 +88,7 @@ AS
                                                        q1.ebs_transaction_no),
                                                    XMLELEMENT (
                                                        NAME "sof1:GLDate",
-                                                       TO_CHAR (q1.gl_date,
+                                                       TO_CHAR (sysdate,
                                                                 'YYYY-MM-DD')),
                                                    XMLELEMENT (
                                                        NAME "sof1:HideFromAccountQuery",
@@ -172,7 +171,7 @@ AS
                                                    --XMLELEMENT(NAME "sof1:BindingId", initcap(q1.brand)),
                                                    XMLELEMENT (
                                                        NAME "sof1:BookingDate",
-                                                       TO_CHAR (q1.gl_date,
+                                                       TO_CHAR (sysdate,
                                                                 'YYYY-MM-DD')),
                                                    XMLELEMENT (
                                                        NAME "sof1:Brand",
@@ -185,13 +184,21 @@ AS
                                                        q1.customer_id),
                                                    XMLELEMENT (
                                                        NAME "sof1:Description",
-                                                       coalesce(q1.description, q1.receipt_nr)),
+                                                       COALESCE (
+                                                           q1.description,
+                                                           q1.receipt_nr)),
                                                    XMLELEMENT (
                                                        NAME "sof1:DocNumber",
                                                        q1.receipt_nr),
-                                                   --XMLELEMENT(NAME "sof1:IdentificationRef" ,q1.financial_dimentsion),
-                                                   XMLELEMENT(NAME "sof1:JournalName" ,
-                                                   nvl(q1.journal_name,'LEBS')),
+                                                   CASE WHEN q1.invoice_amount < 0 THEN    
+                                                   XMLELEMENT ( 
+                                                       NAME "sof1:IdentificationRef" ,
+                                                       q1.debit_invoice)
+                                                   END,
+                                                   XMLELEMENT (
+                                                       NAME "sof1:JournalName",
+                                                       NVL (q1.journal_name,
+                                                            'LEBS')),
                                                    --XMLELEMENT(NAME "sof1:PaymentMethod" ,q1.ebs_transaction_no),
                                                    --XMLELEMENT(NAME "sof1:ReceiverAccount" ,to_char(q1.gl_date, 'YYYY-MM-DD')),
                                                    --XMLELEMENT(NAME "sof1:ReceiverName" ,q1.show),
@@ -200,7 +207,7 @@ AS
                                                        q1.reference_number),
                                                    XMLELEMENT (
                                                        NAME "sof1:RefType",
-                                                       q1.TYPE),
+                                                       coalesce(q1.reftype, q1.type)),
                                                    XMLELEMENT (
                                                        NAME "sof1:SenderAccount",
                                                        q1.iban),
@@ -210,14 +217,20 @@ AS
                                                    --XMLELEMENT(NAME "sof1:SplitingId" ,q1.reference_number),
                                                    XMLELEMENT (
                                                        NAME "sof1:TargetAccount",
-                                                       q1.gl_account), 
-                                                   XMLELEMENT(NAME "sof1:TransactionIdentification" ,q1.ebs_transaction_no),  --NOT SURE
-                --XMLELEMENT(NAME "sof1:TransactionTimeStamp" ,q1.gl_account),
-   XMLELEMENT(NAME "sof1:ValueDate" ,to_char(q1.gl_date, 'YYYY-MM-DD')) --NOT SURE what date?
-                                                   ))))) AS CLOB
+                                                       q1.gl_account),
+                                                   XMLELEMENT (
+                                                       NAME "sof1:TransactionIdentification",
+                                                       q1.ebs_transaction_no), --NOT SURE
+                                                   --XMLELEMENT(NAME "sof1:TransactionTimeStamp" ,q1.gl_account),
+                                                   XMLELEMENT (
+                                                       NAME "sof1:ValueDate",
+                                                       TO_CHAR (q1.gl_date,
+                                                                'YYYY-MM-DD')) --NOT SURE what date?
+                                                                              ))))) AS CLOB
                        INDENT SIZE = 0)
                ELSE
                    NULL
-           END                         zclob
+           END
+               zclob
       FROM xxemt.xxd_ar_trx_dax q1
      WHERE old = 'N';

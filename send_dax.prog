@@ -1,0 +1,221 @@
+#!/bin/bash
+get_trans() {
+sqlplus -s ${user_pswd} <<EOF
+set echo off
+set heading off
+set feedback off
+select ebs_transaction_no || '_' || type
+from xxd_ar_trx_dax_out_v x
+where rownum=1;
+EOF
+}
+
+get_req() {
+sqlplus -s ${user_pswd} <<EOF2
+set echo off
+set feed off
+set lines 800
+set longchunksize 800
+set pages 0
+set long 100000
+set head off
+select zclob from xxd_soap_dax_v
+where ebs_transaction_no='$trans'
+and type='$transtype';
+EOF2
+}
+
+valid_xml() {
+sqlplus -s ${user_pswd} <<EOF5
+set feed off
+set head off;
+set serverout on
+declare
+l_xml XMLType;
+begin
+  l_xml := XMLType(q'[${answer}]');
+  dbms_output.put_line('1');
+exception when others then
+  dbms_output.put_line('0');
+end;
+/
+EOF5
+}
+
+neg_answer() {
+sqlplus -s ${user_pswd} <<EOF6
+set head off
+set feed off
+with q1 as (
+select '$ans_id' aid from dual
+)
+select nvl(a.id, 0) v
+from q1 left join  xxd_dax_answer a ON q1.aid=a.id and (a.warning is not null or a.err is not null);
+EOF6
+}
+
+get_ans_id() {
+sqlplus -s ${user_pswd} <<EOF3
+set serverout on
+set feed off
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
+declare
+l_answer_id NUMBER;
+begin
+  update xxemt.xxd_ar_trx_dax
+  set status = 'W', sent_date = sysdate
+  where ebs_transaction_no = '$trans'
+  and   type = '$transtype';
+  insert into XXD_DAX_ANSWER (EBS_TRANSACTION_NO, TRANS_TYPE)
+  values ('$trans', '$transtype')
+  returning id into l_answer_id;
+  commit;
+  dbms_output.put_line(l_answer_id);
+end;
+/
+EOF3
+}
+
+reset_status() {
+sqlplus -s ${user_pswd} <<EOF7
+set serverout on
+set feed off
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
+begin
+  update xxemt.xxd_ar_trx_dax
+  set status = 'N', sent_date = sysdate
+  where ebs_transaction_no = '$trans'
+  and   type = '$transtype';
+  commit;
+end;
+/
+EOF7
+}
+
+set -e
+set -u
+
+#Initialize variables
+ADIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+user_pswd=$1
+conc_id=$4
+controlfile="${ADIR}/daxloader.ctl"
+logfile="${ADIR}/daxloader.log"
+badfile="${ADIR}/daxloader${conc_id}.bad"
+infile="${ADIR}/daxloader.txt"
+controlfile_r="${ADIR}/daxloader_r.ctl"
+logfile_r="${ADIR}/daxloader_r.log"
+badfile_r="${ADIR}/daxloader_r${conc_id}.bad"
+infile_r="${ADIR}/daxloader_r.txt"
+
+source ${ADIR}/connections.sh
+
+sqlplus -s ${user_pswd} <<EOF10
+set define off
+set feed off
+update xxemt.xxd_ar_trx_dax x
+set customer_id = (select attribute9 from hz_cust_accounts c where  c.cust_account_id=x.ebs_customer_id)
+where x.customer_id is null
+and old='N'
+and status='N'
+and ebs_customer_id in (
+select cust_account_id
+from hz_cust_accounts c
+where attribute9 is not null
+);
+EOF10
+
+trans=$(echo $(get_trans))
+until [ -z "$trans" ]
+do
+
+IFS="_" read -r trans transtype <<< "${trans}"
+SOAPFILE="${ADIR}/r${trans}.xml"
+req=$(get_req)
+echo "$req"  > $SOAPFILE
+RESPFILE="${ADIR}/a${trans}.xml"
+
+echo "Sending ${trans}"
+
+if [ $transtype = "RECEIPT" ]; then
+URL=https://soa-test.elion.ee/soap/Enterprise/Dynamics/SofBankAPIPayment/xppservice.svc
+SOAPACTION="SOAPAction: \"http://softwerk.ee/elion/SofBankAPIPaymentService/SofBankAPIPaymentService/create\""
+elif  [ $transtype = "INVOICE" ]; then
+URL=https://soa-test.elion.ee/soap/Enterprise/Dynamics/SofEbsSalesInvoice/xppservice.svc
+SOAPACTION="SOAPAction: \"http://softwerk.ee/elion/SofEbsSalesInvoiceService/SofEbsSalesInvoiceService/create\""
+else
+exit
+fi
+ans_id=$(get_ans_id)
+
+curl --user $AUTHENTICATION --silent -H "Content-Type: text/xml;charset=UTF-8" -H "$SOAPACTION" --data @$SOAPFILE $URL --connect-timeout $TIMEOUT --insecure --output "$RESPFILE"
+
+valid=1
+if [ $(stat --printf="%s" $RESPFILE) -lt 2400 ]; then
+answer=$(cat $RESPFILE)
+valid=$(echo $(valid_xml))
+else
+echo ${trans},${ans_id},${RESPFILE} > ${infile}
+
+cat > ${controlfile} <<EOF9
+LOAD DATA
+INFILE '${infile}' APPEND
+  INTO TABLE xxd_dax_clob
+  FIELDS TERMINATED BY ','
+  (ebs_transaction_no   CHAR(10),
+   answer_id            CHAR(10),
+   fname                FILLER CHAR(80),
+   answer               LOBFILE(fname) TERMINATED BY EOF
+  )
+EOF9
+
+sqlldr ${user_pswd} 'silent=(header, feedback)' control="${controlfile}" log="${logfile}" bad="${badfile}"
+cat ${logfile}
+rm -f  ${logfile}
+answer="XML too long"
+fi
+
+rm -f ${RESPFILE}
+
+if [ $valid -eq 0 ]; then
+  reset_status
+  echo $answer
+  break
+fi
+
+sqlplus -s ${user_pswd} <<EOF4
+set define off
+set feed off
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
+begin
+  XXD_SOAP_DAX.get_answer('$trans', '${transtype}', ${ans_id}, q'[${answer}]');
+end;
+/
+EOF4
+
+na=$(echo $(neg_answer))
+if [ $na -gt 0 ]; then
+echo ${trans},${na},${SOAPFILE} > ${infile_r}
+
+cat > ${controlfile_r} <<EOF8
+LOAD DATA
+INFILE '${infile_r}' APPEND
+  INTO TABLE xxd_dax_req_clob
+  FIELDS TERMINATED BY ','
+  (ebs_transaction_no   CHAR(10),
+   answer_id            CHAR(10),
+   fname                FILLER CHAR(80),
+   req                  LOBFILE(fname) TERMINATED BY EOF
+  )
+EOF8
+
+sqlldr ${user_pswd} 'silent=(header, feedback)' control="${controlfile_r}" log="${logfile_r}" bad="${badfile_r}"
+cat ${logfile_r}
+rm -f  ${logfile_r}
+fi
+
+rm -f ${SOAPFILE}
+
+trans=$(echo $(get_trans))
+
+done
