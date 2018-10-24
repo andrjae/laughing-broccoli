@@ -97,16 +97,18 @@ set -u
 
 #Initialize variables
 ADIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+LDIR="${ADIR}/daxp"
+mkdir -p ${LDIR}
 user_pswd=$1
 conc_id=$4
-controlfile="${ADIR}/daxloader.ctl"
-logfile="${ADIR}/daxloader.log"
-badfile="${ADIR}/daxloader${conc_id}.bad"
-infile="${ADIR}/daxloader.txt"
-controlfile_r="${ADIR}/daxloader_r.ctl"
-logfile_r="${ADIR}/daxloader_r.log"
-badfile_r="${ADIR}/daxloader_r${conc_id}.bad"
-infile_r="${ADIR}/daxloader_r.txt"
+controlfile="${LDIR}/daxloader.ctl"
+logfile="${LDIR}/daxloader.log"
+badfile="${LDIR}/daxloader${conc_id}.bad"
+infile="${LDIR}/daxloader.txt"
+controlfile_r="${LDIR}/daxloader_r.ctl"
+logfile_r="${LDIR}/daxloader_r.log"
+badfile_r="${LDIR}/daxloader_r${conc_id}.bad"
+infile_r="${LDIR}/daxloader_r.txt"
 
 source ${ADIR}/connections.sh
 
@@ -130,10 +132,10 @@ until [ -z "$trans" ]
 do
 
 IFS="_" read -r trans transtype <<< "${trans}"
-SOAPFILE="${ADIR}/r${trans}.xml"
+SOAPFILE="${LDIR}/r${trans}.xml"
 req=$(get_req)
 echo "$req"  > $SOAPFILE
-RESPFILE="${ADIR}/a${trans}.xml"
+RESPFILE="${LDIR}/a${trans}.xml"
 
 echo "Sending ${trans}"
 
