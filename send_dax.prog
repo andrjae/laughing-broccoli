@@ -19,9 +19,14 @@ set longchunksize 800
 set pages 0
 set long 100000
 set head off
-select zclob from xxd_soap_dax_v
+select zclob from (
+select zclob, row_number() over (partition by ebs_transaction_no, type order by null) c 
+from xxd_soap_dax_v
 where ebs_transaction_no='$trans'
-and type='$transtype';
+and type='$transtype'
+)
+where c=1
+;
 EOF2
 }
 
@@ -109,6 +114,7 @@ controlfile_r="${LDIR}/daxloader_r.ctl"
 logfile_r="${LDIR}/daxloader_r.log"
 badfile_r="${LDIR}/daxloader_r${conc_id}.bad"
 infile_r="${LDIR}/daxloader_r.txt"
+counter=0
 
 source ${ADIR}/connections.sh
 
@@ -131,6 +137,7 @@ trans=$(echo $(get_trans))
 until [ -z "$trans" ]
 do
 
+((counter++))
 IFS="_" read -r trans transtype <<< "${trans}"
 SOAPFILE="${LDIR}/r${trans}.xml"
 req=$(get_req)
@@ -217,6 +224,10 @@ rm -f  ${logfile_r}
 fi
 
 rm -f ${SOAPFILE}
+
+if [ $counter -ge 10 ]; then
+  break
+fi
 
 trans=$(echo $(get_trans))
 

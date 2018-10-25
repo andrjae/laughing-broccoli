@@ -1,4 +1,4 @@
-/* Formatted on 10.10.2018 9:31:06 (QP5 v5.318) */
+/* Formatted on 25.10.2018 8:36:12 (QP5 v5.318) */
 CREATE OR REPLACE FORCE VIEW APPS.XXD_SOAP_DAX_V
 (
     CUSTOMER_ID,
@@ -88,8 +88,9 @@ AS
                                                        q1.ebs_transaction_no),
                                                    XMLELEMENT (
                                                        NAME "sof1:GLDate",
-                                                       TO_CHAR (sysdate,
-                                                                'YYYY-MM-DD')),
+                                                       TO_CHAR (
+                                                                case when q1.message like '%rahandusperiood pole avatud%' then trunc(SYSDATE, 'MM') else q1.gl_date end
+                                                                ,'YYYY-MM-DD')),
                                                    XMLELEMENT (
                                                        NAME "sof1:HideFromAccountQuery",
                                                        q1.show),
@@ -171,8 +172,9 @@ AS
                                                    --XMLELEMENT(NAME "sof1:BindingId", initcap(q1.brand)),
                                                    XMLELEMENT (
                                                        NAME "sof1:BookingDate",
-                                                       TO_CHAR (sysdate,
-                                                                'YYYY-MM-DD')),
+                                                       TO_CHAR (
+                                                                case when q1.message like '%rahandusperiood pole avatud%' then trunc(SYSDATE, 'MM') else q1.gl_date end
+                                                                ,'YYYY-MM-DD')),
                                                    XMLELEMENT (
                                                        NAME "sof1:Brand",
                                                        INITCAP (q1.brand)),
@@ -190,10 +192,13 @@ AS
                                                    XMLELEMENT (
                                                        NAME "sof1:DocNumber",
                                                        q1.receipt_nr),
-                                                   CASE WHEN q1.invoice_amount < 0 THEN    
-                                                   XMLELEMENT ( 
-                                                       NAME "sof1:IdentificationRef" ,
-                                                       q1.debit_invoice)
+                                                   CASE
+                                                       WHEN q1.invoice_amount <
+                                                            0
+                                                       THEN
+                                                           XMLELEMENT (
+                                                               NAME "sof1:IdentificationRef",
+                                                               q1.debit_invoice)
                                                    END,
                                                    XMLELEMENT (
                                                        NAME "sof1:JournalName",
@@ -207,7 +212,8 @@ AS
                                                        q1.reference_number),
                                                    XMLELEMENT (
                                                        NAME "sof1:RefType",
-                                                       coalesce(q1.reftype, q1.type)),
+                                                       COALESCE (q1.reftype,
+                                                                 q1.TYPE)),
                                                    XMLELEMENT (
                                                        NAME "sof1:SenderAccount",
                                                        q1.iban),
@@ -224,8 +230,9 @@ AS
                                                    --XMLELEMENT(NAME "sof1:TransactionTimeStamp" ,q1.gl_account),
                                                    XMLELEMENT (
                                                        NAME "sof1:ValueDate",
-                                                       TO_CHAR (q1.gl_date,
-                                                                'YYYY-MM-DD')) --NOT SURE what date?
+                                                       TO_CHAR (
+                                                                case when q1.message like '%rahandusperiood pole avatud%' then trunc(SYSDATE, 'MM') else q1.gl_date end
+                                                                ,'YYYY-MM-DD')) --NOT SURE what date?
                                                                               ))))) AS CLOB
                        INDENT SIZE = 0)
                ELSE
