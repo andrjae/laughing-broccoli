@@ -1,0 +1,90 @@
+#!/bin/bash
+
+get_req() {
+sqlplus -s $user_pswd <<EOF
+set echo off
+set feed off
+set lines 800
+set pages 0
+set head off
+TRUNCATE table xxd_dax_customer_temp;
+select distinct
+cust.cust_account_id || ',' || to_number(regexp_substr(cust.attribute20, '\d+',1,1)) emt_id
+from hz_cust_accounts cust, hz_parties p
+where cust.status = 'A'
+and p.party_id = cust.party_id
+and p.party_name !='Elion / Arveldusteenus'
+and cust.attribute20  = regexp_substr(cust.attribute20, 'tbcis:\d+',1,1)
+and cust.attribute9 is null
+and (cust.cust_account_id not in (select ebs_customer_id from XXD_DAX_CUSTOMER_MISS) OR sysdate-trunc(sysdate)<1/24)
+--and cust.cust_account_id not in (select ebs_customer_id from XXD_DAX_CUSTOMER)
+and cust.CUST_ACCOUNT_ID in (
+select customer_id from ar_payment_schedules_all
+where gl_date >= date '2016-01-01'
+)
+and rownum <= 4000;
+EOF
+}
+
+set -e
+set -u
+
+#Initialize variables
+ADIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+LDIR="${ADIR}/daxp"
+mkdir -p ${LDIR}
+user_pswd=$1
+conc_id=$4
+controlfile="${LDIR}/daxloader_c.ctl"
+logfile="${LDIR}/daxloader_c.log"
+badfile="${LDIR}/daxloader_c${conc_id}.bad"  
+EBSFILE="${ADIR}/o.txt"
+req=$(get_req)
+if  [ -z "$req" ]; then
+  echo "No new data"
+  exit
+fi
+echo "$req"  > $EBSFILE
+python "${ADIR}/cxx.py"
+
+cat > "${controlfile}" <<EOF3
+LOAD DATA
+INFILE '${ADIR}/o2.txt' APPEND
+  INTO TABLE xxd_dax_customer_temp
+  FIELDS TERMINATED BY ','
+  (ebs_customer_id      CHAR(10),
+   customer_id          CHAR(10)
+  )
+EOF3
+
+sqlldr $user_pswd control="${controlfile}" log="${logfile}" bad="${badfile}"
+cat ${logfile}
+rm -f  ${logfile}
+
+sqlplus -s $user_pswd <<EOF2
+set echo off
+set feed off
+insert all
+when (customer_id = 0) then
+into xxd_dax_customer_miss(ebs_customer_id) values (ebs_customer_id)
+when (customer_id > 0) then
+into xxd_dax_customer(ebs_customer_id, customer_id) values (ebs_customer_id, customer_id)
+select * from xxd_dax_customer_temp;
+update hz_cust_accounts x
+set attribute9 = (select z.customer_id from (select ebs_customer_id, ct.customer_id from xxd_dax_customer_temp ct JOIN xxd_dax_customer c  USING (ebs_customer_id)) z  where  z.ebs_customer_id=x.cust_account_id and rownum=1),
+last_update_date=sysdate, last_updated_by = -1, last_update_login=-1
+where x.attribute9 is null
+and cust_account_id in (
+select ebs_customer_id
+from xxd_dax_customer_temp ct JOIN xxd_dax_customer c USING (ebs_customer_id) 
+);
+delete from xxd_dax_customer_miss
+where rowid in (
+select rowid from (
+select rowid, row_number() over (partition by ebs_customer_id order by null) rn, t.* from xxd_dax_customer_miss t
+)
+where rn >1
+);
+commit;
+EOF2
+

@@ -23,4 +23,5 @@ with open(os.path.join(script_dir, "o.txt")) as file1:
    file2.write(nums[0] + "," + str(response.json()["customers"][0]["customerId"]) + "\n")
   else:
    file2.write(nums[0] + ",0\n")
-file2.close() 
+file2.close()
+
