@@ -1,0 +1,25 @@
+ONEERP-45
+
+1:  Create Tables.
+    XXD_DAX_CUSTOMER.sql
+    XXD_DAX_CUSTOMER_MISS.sql
+    XXD_DAX_CUSTOMER_TEMP.sql
+   
+2:  Copy to $XXEMT_TOP/bin
+    send_dax.prog
+    connections.sh
+
+3:  On app server
+    cd $XXEMT_TOP/bin
+    chmod +x send_dax.prog.prog
+    ln -s $FND_TOP/bin/fndcpesr customer_get
+
+4:  Edit connections.sh file to replace test urls and users with live ones
+
+5:  Create Concurrent
+    Create_SendDax_Concurrent.sql
+
+    
+    
+
+        

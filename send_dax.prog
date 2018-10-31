@@ -146,10 +146,10 @@ RESPFILE="${LDIR}/a${trans}.xml"
 echo "Sending ${trans}"
 
 if [ $transtype = "RECEIPT" ]; then
-URL=https://soa-test.elion.ee/soap/Enterprise/Dynamics/SofBankAPIPayment/xppservice.svc
+URL=$URL_PAY
 SOAPACTION="SOAPAction: \"http://softwerk.ee/elion/SofBankAPIPaymentService/SofBankAPIPaymentService/create\""
 elif  [ $transtype = "INVOICE" ]; then
-URL=https://soa-test.elion.ee/soap/Enterprise/Dynamics/SofEbsSalesInvoice/xppservice.svc
+URL=$URL_INV
 SOAPACTION="SOAPAction: \"http://softwerk.ee/elion/SofEbsSalesInvoiceService/SofEbsSalesInvoiceService/create\""
 else
 exit
