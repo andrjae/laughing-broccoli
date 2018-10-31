@@ -1,4 +1,3 @@
-/* Formatted on 25.10.2018 8:36:12 (QP5 v5.318) */
 CREATE OR REPLACE FORCE VIEW APPS.XXD_SOAP_DAX_V
 (
     CUSTOMER_ID,
@@ -89,8 +88,17 @@ AS
                                                    XMLELEMENT (
                                                        NAME "sof1:GLDate",
                                                        TO_CHAR (
-                                                                case when q1.message like '%rahandusperiood pole avatud%' then trunc(SYSDATE, 'MM') else q1.gl_date end
-                                                                ,'YYYY-MM-DD')),
+                                                           CASE
+                                                               WHEN q1.MESSAGE LIKE
+                                                                        '%rahandusperiood pole avatud%'
+                                                               THEN
+                                                                   TRUNC (
+                                                                       SYSDATE,
+                                                                       'MM')
+                                                               ELSE
+                                                                   q1.gl_date
+                                                           END,
+                                                           'YYYY-MM-DD')),
                                                    XMLELEMENT (
                                                        NAME "sof1:HideFromAccountQuery",
                                                        q1.show),
@@ -173,8 +181,17 @@ AS
                                                    XMLELEMENT (
                                                        NAME "sof1:BookingDate",
                                                        TO_CHAR (
-                                                                case when q1.message like '%rahandusperiood pole avatud%' then trunc(SYSDATE, 'MM') else q1.gl_date end
-                                                                ,'YYYY-MM-DD')),
+                                                           CASE
+                                                               WHEN q1.MESSAGE LIKE
+                                                                        '%rahandusperiood pole avatud%'
+                                                               THEN
+                                                                   TRUNC (
+                                                                       SYSDATE,
+                                                                       'MM')
+                                                               ELSE
+                                                                   q1.gl_date
+                                                           END,
+                                                           'YYYY-MM-DD')),
                                                    XMLELEMENT (
                                                        NAME "sof1:Brand",
                                                        INITCAP (q1.brand)),
@@ -231,9 +248,18 @@ AS
                                                    XMLELEMENT (
                                                        NAME "sof1:ValueDate",
                                                        TO_CHAR (
-                                                                case when q1.message like '%rahandusperiood pole avatud%' then trunc(SYSDATE, 'MM') else q1.gl_date end
-                                                                ,'YYYY-MM-DD')) --NOT SURE what date?
-                                                                              ))))) AS CLOB
+                                                           CASE
+                                                               WHEN q1.MESSAGE LIKE
+                                                                        '%rahandusperiood pole avatud%'
+                                                               THEN
+                                                                   TRUNC (
+                                                                       SYSDATE,
+                                                                       'MM')
+                                                               ELSE
+                                                                   q1.gl_date
+                                                           END,
+                                                           'YYYY-MM-DD')) --NOT SURE what date?
+                                                                         ))))) AS CLOB
                        INDENT SIZE = 0)
                ELSE
                    NULL

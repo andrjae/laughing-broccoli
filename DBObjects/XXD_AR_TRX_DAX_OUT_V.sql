@@ -1,4 +1,3 @@
-/* Formatted on 24.10.2018 9:22:31 (QP5 v5.318) */
 CREATE OR REPLACE FORCE VIEW APPS.XXD_AR_TRX_DAX_OUT_V
 (
     CUSTOMER_ID,
@@ -84,11 +83,11 @@ AS
            "REFTYPE",
            "EBS_CUSTOMER_ID_ORIG"
       FROM xxemt.xxd_ar_trx_dax x
-     WHERE     gl_date >= DATE '2018-10-01'
+     WHERE     gl_date >= DATE '2018-11-01'
            --  AND reference_number IN ('771537723561')
            AND old = 'N'
-           AND status in ('N', 'E') 
-           AND (message like '%rahandusperiood pole avatud%' OR status = 'N') 
+           AND status IN ('N', 'E')
+           AND (MESSAGE LIKE '%rahandusperiood pole avatud%' OR status = 'N')
            AND customer_id IS NOT NULL
            AND (   (    TYPE = 'RECEIPT'
                     AND receipt_nr IS NOT NULL
