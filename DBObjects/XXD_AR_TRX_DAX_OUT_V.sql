@@ -87,7 +87,14 @@ AS
            --  AND reference_number IN ('771537723561')
            AND old = 'N'
            AND status IN ('N', 'E')
-           AND (MESSAGE LIKE '%rahandusperiood pole avatud%' OR status = 'N')
+           AND (MESSAGE LIKE '%rahandusperiood pole avatud%' OR status = 'N' 
+                OR (status='E' AND sent_date < sysdate-1/24 and (
+                     select count(*) 
+                     from xxd_dax_answer a 
+                     where a.ebs_transaction_no = x.ebs_transaction_no
+                     and a.trans_type = x.type
+                 ) < 72 ) -- 3*24h 
+               )
            AND customer_id IS NOT NULL
            AND (   (    TYPE = 'RECEIPT'
                     AND receipt_nr IS NOT NULL
