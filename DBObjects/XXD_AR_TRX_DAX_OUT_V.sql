@@ -87,6 +87,7 @@ AS
            --  AND reference_number IN ('771537723561')
            AND old = 'N'
            AND status IN ('N', 'E')
+           AND nvl(message,'X') not like '%Kirje on juba olemas.'
            AND (MESSAGE LIKE '%rahandusperiood pole avatud%' OR status = 'N' 
                 OR (status='E' AND sent_date < sysdate-1/24 and (
                      select count(*) 
