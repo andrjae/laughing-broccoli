@@ -2,12 +2,17 @@
 import sys
 import requests
 import os
-from connections import *
 script_dir = os.path.dirname(__file__)
 statinfo = os.stat(os.path.join(script_dir, "o.txt"))
 if statinfo.st_size == 0 :
     print ("Customer file empty")
     sys.exit(0)
+host = os.uname()[1]
+conn = os.path.join(script_dir, host + '.' + 'connections.py')
+if not os.path.isfile(conn) :
+    print ("No environment file " + conn)
+    sys.exit(0)
+execfile(conn)
 resp_t = requests.request("GET", url_t, headers=headers, verify=False)
 if resp_t.status_code != requests.codes.ok :
     sys.stderr.write("JWT webservice error: " + str(resp_t.status_code) + "\n")

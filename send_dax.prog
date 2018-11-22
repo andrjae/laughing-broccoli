@@ -116,7 +116,15 @@ badfile_r="${LDIR}/daxloader_r${conc_id}.bad"
 infile_r="${LDIR}/daxloader_r.txt"
 counter=0
 
-source ${ADIR}/connections.sh
+host=$(uname -n)
+srcfile=${ADIR}/${host}.connections.sh
+if [ ! -f $srcfile ]
+then
+  echo "Not found configuration file "$srcfile
+  exit 1
+fi
+source $srcfile
+
 
 sqlplus -s ${user_pswd} <<EOF10
 set define off
@@ -156,7 +164,8 @@ exit
 fi
 ans_id=$(get_ans_id)
 
-curl --user $AUTHENTICATION --silent -H "Content-Type: text/xml;charset=UTF-8" -H "$SOAPACTION" --data @$SOAPFILE $URL --connect-timeout $TIMEOUT --insecure --output "$RESPFILE"
+
+curl --user "$AUTHENTICATION" --silent -H "Content-Type: text/xml;charset=UTF-8" -H "$SOAPACTION" --data "@$SOAPFILE" "$URL" --connect-timeout "$TIMEOUT" --insecure --output "$RESPFILE"
 
 valid=1
 if [ $(stat --printf="%s" $RESPFILE) -lt 2400 ]; then
